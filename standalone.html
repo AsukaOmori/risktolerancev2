@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Risk Personality Assessment | CheckFirst</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                fontFamily: {
+                    sans: ['Inter', 'sans-serif'],
+                },
+                extend: {
+                    animation: {
+                        'fade-in': 'fadeIn 0.6s ease-out',
+                        'slide-up': 'slideUp 0.6s ease-out',
+                        'fade-in-right': 'fadeInRight 0.4s ease-out',
+                        'flicker': 'flicker 0.3s ease-in-out',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        },
+                        slideUp: {
+                            '0%': { transform: 'translateY(20px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' },
+                        },
+                        fadeInRight: {
+                            '0%': { transform: 'translateX(20px)', opacity: '0' },
+                            '100%': { transform: 'translateX(0)', opacity: '1' },
+                        },
+                        flicker: {
+                            '0%, 100%': { opacity: '1', transform: 'scale(1)' },
+                            '50%': { opacity: '0.8', transform: 'scale(0.98)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body
+    class="h-full bg-gray-50 dark:bg-black text-gray-900 dark:text-gray-100 antialiased transition-colors duration-300">
+
+    <!-- Navbar -->
+    <nav
+        class="fixed w-full z-50 top-0 left-0 bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-800">
+        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <div class="w-6 h-6 bg-gradient-to-tr from-blue-600 to-teal-400 rounded-lg"></div>
+                <span class="font-bold text-lg tracking-tight">CheckFirst</span>
+            </div>
+            <button onclick="document.documentElement.classList.toggle('dark')"
+                class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor"
+                    viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z">
+                    </path>
+                </svg>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <main class="min-h-screen pt-32 pb-16 px-6">
+        <div id="app-root" class="w-full"></div>
+    </main>
+
+    <!-- Bundled Application Logic -->
+    <script>
+        // --- 1. CONSTANTS ---
+        const RISK_QUESTIONS = [
+            { id: "q1", text: "In general, how would your best friend describe you as a risk taker?", options: [{ text: "A real gambler", score: 4 }, { text: "Willing to take risks after completing adequate research", score: 3 }, { text: "Cautious", score: 2 }, { text: "A real risk avoider", score: 1 }] },
+            { id: "q2", text: "You are on a TV game show and can choose one of the following. Which would you take?", options: [{ text: "$1,000 in cash", score: 1 }, { text: "A 50% chance at winning $5,000", score: 2 }, { text: "A 25% chance at winning $10,000", score: 3 }, { text: "A 5% chance at winning $100,000", score: 4 }] },
+            { id: "q3", text: "You have just finished saving for a \"once-in-a-lifetime\" vacation. Three weeks before you plan to leave, you lose your job. You would:", options: [{ text: "Cancel the vacation", score: 1 }, { text: "Take a much more modest vacation", score: 2 }, { text: "Go as planned, extending your job search", score: 3 }, { text: "Extend your vacation, because this might be your last chance to go first-class", score: 4 }] },
+            { id: "q4", text: "If you unexpectedly received $20,000 to invest, what would you do?", options: [{ text: "Deposit it in a bank account, money market account, or an insured CD", score: 1 }, { text: "Invest it in safe high quality bonds or mutual funds", score: 2 }, { text: "Invest it in the stock market", score: 3 }, { text: "Invest it in a portfolio with moderate volatility", score: 4 }] },
+            { id: "q5", text: "In terms of experience, how comfortable are you investing in stocks or stock mutual funds?", options: [{ text: "Not at all comfortable", score: 1 }, { text: "Somewhat comfortable", score: 2 }, { text: "Very comfortable", score: 3 }] },
+            { id: "q6", text: "When you think of the word \"risk\" which of the following words comes to mind first?", options: [{ text: "Loss", score: 1 }, { text: "Uncertainty", score: 2 }, { text: "Opportunity", score: 3 }, { text: "Thrilling", score: 4 }] },
+            { id: "q7", text: "Some experts are predicting prices of assets such as gold, jewels, collectibles, and real estate (hard assets) to increase in value; bond prices may fall, however, experts tend to agree that government bonds are relatively safe. Most of your investment assets are now in high interest government bonds. What would you do?", options: [{ text: "Hold the bonds", score: 1 }, { text: "Sell the bonds, put half the proceeds into money market accounts, and the other half into hard assets", score: 2 }, { text: "Sell the bonds and put the total proceeds into hard assets", score: 3 }, { text: "Sell the bonds, put all the money into hard assets, and borrow money to buy more", score: 4 }] },
+            { id: "q8", text: "Given the best and worst case returns of the four investment choices below, which would you prefer?", options: [{ text: "$200 gain best case; $0 gain/loss worst case", score: 1 }, { text: "$800 gain best case; $200 loss worst case", score: 2 }, { text: "$2,600 gain best case; $800 loss worst case", score: 3 }, { text: "$4,800 gain best case; $2,400 loss worst case", score: 4 }] },
+            { id: "q9", text: "In addition to whatever you own, you have been given $1,000. You are now asked to choose between:", options: [{ text: "A sure gain of $500", score: 1 }, { text: "A 50% chance to gain $1,000 and a 50% chance to gain nothing", score: 3 }] },
+            { id: "q10", text: "In addition to whatever you own, you have been given $2,000. You are now asked to choose between:", options: [{ text: "A sure loss of $500", score: 1 }, { text: "A 50% chance to lose $1,000 and a 50% chance to lose nothing", score: 3 }] },
+            { id: "q11", text: "Suppose a relative left you an inheritance of $100,000, stipulating in the will that you invest all the money in ONE of the following choices. Which one would you select?", options: [{ text: "A savings account or money market mutual fund", score: 1 }, { text: "A mutual fund that owns stocks and bonds", score: 2 }, { text: "A portfolio of 15 common stocks", score: 3 }, { text: "Commodities like gold, silver, and oil", score: 4 }] }
+        ];
+
+        const SCORING_TIERS = {
+            VERY_LOW: { min: 0, max: 15, label: "Very Low Tolerance", class: "Very Conservative" },
+            LOW: { min: 16, max: 22, label: "Low Tolerance", class: "Conservative" },
+            MODERATE: { min: 23, max: 29, label: "Moderate Tolerance", class: "Moderate" },
+            HIGH: { min: 30, max: 36, label: "High Tolerance", class: "Growth" },
+            VERY_HIGH: { min: 37, max: 100, label: "Very High Tolerance", class: "Aggressive" }
+        };
+
+        const SAA_TARGETS = {
+            "Very Conservative": { equity: 15, fixed: 60, cash: 25, label: "Capital Preservation" },
+            "Conservative": { equity: 25, fixed: 55, cash: 20, label: "Income with Growth" },
+            "Moderate": { equity: 50, fixed: 45, cash: 5, label: "Balanced Growth" },
+            "Growth": { equity: 70, fixed: 25, cash: 5, label: "Wealth Accumulation" },
+            "Aggressive": { equity: 90, fixed: 8, cash: 2, label: "Maximum Appreciation" }
+        };
+
+        const SUITABILITY_MATRIX = {
+            "Low": {
+                "Very Low Tolerance": "Very Conservative",
+                "Low Tolerance": "Conservative",
+                "Moderate Tolerance": "Conservative",
+                "High Tolerance": "Moderate",
+                "Very High Tolerance": "Growth"
+            },
+            "High": {
+                "Very Low Tolerance": "Very Conservative",
+                "Low Tolerance": "Conservative",
+                "Moderate Tolerance": "Moderate",
+                "High Tolerance": "Growth",
+                "Very High Tolerance": "Aggressive"
+            }
+        };
+
+        // --- 2. SCORING LOGIC ---
+        function calculateRiskToleranceScore(answers) {
+            let totalScore = 0;
+            Object.values(answers).forEach(score => { totalScore += parseInt(score) || 0; });
+
+            let toleranceLevel = "Moderate Tolerance";
+            for (const tier of Object.values(SCORING_TIERS)) {
+                if (totalScore >= tier.min && totalScore <= tier.max) {
+                    toleranceLevel = tier.label;
+                    break;
+                }
+            }
+            return { score: totalScore, level: toleranceLevel };
+        }
+
+        function determineRiskCapacity(data) {
+            // Weighted Scoring System (0-100) based on Financial Health
+            let score = 0;
+
+            // 1. Age Factor (Time Horizon) - Max 30 pts
+            const age = parseInt(data.age) || 30;
+            if (age < 35) score += 30;
+            else if (age < 50) score += 20;
+            else if (age < 65) score += 10;
+            else score += 0; // > 65
+
+            // 2. Income Factor (Stability) - Max 30 pts
+            const income = parseFloat(data.monthlyIncome) || 0;
+            if (income > 12000) score += 30;
+            else if (income > 6000) score += 20;
+            else if (income > 3000) score += 10;
+            else score += 5;
+
+            // 3. Asset Factor (Safety Net) - Max 25 pts
+            const assets = parseFloat(data.liquidAssets) || 0;
+            if (assets > 250000) score += 25;
+            else if (assets > 100000) score += 20;
+            else if (assets > 50000) score += 10;
+            else score += 0;
+
+            // 4. Dependents Factor (Obligations) - Max 15 pts
+            const children = parseInt(data.dependents) || 0;
+            if (children === 0) score += 15;
+            else if (children <= 2) score += 10;
+            else score += 0; // 3+ children
+
+            // Determine Capacity Level
+            // Score Range: 0 - 100
+            let capacity = "Moderate";
+            if (score >= 75) capacity = "High";
+            else if (score >= 45) capacity = "Moderate";
+            else capacity = "Low";
+
+            return { level: capacity, score: score, details: { age, income, assets, children } };
+        }
+
+        function getRecommendedProfile(toleranceLevel, capacityObj) {
+            // Matrix uses Capacity Level (High/Low) -> logic refactor: map 3 levels
+            const capacity = capacityObj.level; // Low, Moderate, High
+
+            // Expanded Suitability Logic for 5x3 Matrix
+            // If Capacity is LOW, we cap the risk.
+            if (capacity === "Low") {
+                if (toleranceLevel.includes("Very High") || toleranceLevel.includes("High")) return "Moderate"; // Cap at Moderate
+                if (toleranceLevel.includes("Moderate")) return "Conservative";
+                return "Very Conservative";
+            }
+
+            // If Capacity is MODERATE
+            if (capacity === "Moderate") {
+                if (toleranceLevel.includes("Very High")) return "Growth"; // Cap at Growth
+                if (toleranceLevel.includes("High")) return "Growth";
+                if (toleranceLevel.includes("Moderate")) return "Moderate";
+                if (toleranceLevel.includes("Low")) return "Conservative";
+                return "Very Conservative";
+            }
+
+            // If Capacity is HIGH (Can take any risk)
+            // Direct mapping to tolerance
+            if (toleranceLevel === "Very High Tolerance") return "Aggressive";
+            if (toleranceLevel === "High Tolerance") return "Growth";
+            if (toleranceLevel === "Moderate Tolerance") return "Moderate";
+            if (toleranceLevel === "Low Tolerance") return "Conservative";
+            return "Very Conservative";
+        }
+
+        // --- 3. STORE ---
+        class Store {
+            constructor() {
+                this.state = { currentStep: 'welcome', financialData: {}, quizAnswers: {}, quizCurrentIndex: 0 };
+                this.load();
+            }
+            load() {
+                const stored = localStorage.getItem('risk_app_state_standalone');
+                if (stored) { this.state = JSON.parse(stored); }
+            }
+            save() { localStorage.setItem('risk_app_state_standalone', JSON.stringify(this.state)); }
+            updateFinancialData(data) { this.state.financialData = { ...this.state.financialData, ...data }; this.save(); }
+            setQuizAnswer(questionId, score) { this.state.quizAnswers[questionId] = score; this.save(); }
+            setStep(step) { this.state.currentStep = step; this.save(); window.dispatchEvent(new Event('state-change')); }
+            reset() {
+                this.state = { currentStep: 'welcome', financialData: {}, quizAnswers: {}, quizCurrentIndex: 0 };
+                this.save();
+                window.dispatchEvent(new Event('state-change'));
+            }
+        }
+        const store = new Store();
+
+        // --- 4. COMPONENTS ---
+        const components = {
+            welcome: () => `
+                <div class="max-w-2xl mx-auto text-center space-y-8 animate-fade-in">
+                    <h1 class="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-teal-500">Investment Risk Personality Assessment</h1>
+                    <p class="text-xl text-gray-600 dark:text-gray-300 leading-relaxed">
+                        Discover your true investor profile through our scientifically grounded, multi-dimensional assessment. 
+                        We analyze your objective financial capacity and your subjective psychological tolerance to build a personalized roadmap.
+                    </p>
+                    <button onclick="window.app.startFinancial()" class="px-8 py-4 bg-gray-900 text-white rounded-full text-lg font-medium hover:scale-105 transition-transform duration-200 shadow-lg hover:shadow-xl dark:bg-white dark:text-black">Start Assessment</button>
+                    <div class="pt-8 flex justify-center gap-8 text-sm text-gray-400">
+                        <span class="flex items-center">13-Point Psychometrics</span>
+                        <span class="flex items-center">Bank-Level Encryption</span>
+                    </div>
+                </div>
+            `,
+            financialForm: () => `
+                <div class="max-w-xl mx-auto space-y-6 animate-slide-up">
+                    <div class="mb-8">
+                        <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">Financial Reality Check</h2>
+                        <p class="text-gray-500">First, let's establish your objective risk capacity.</p>
+                    </div>
+                    <form id="financial-form" class="space-y-6">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="space-y-2">
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Age</label>
+                                <input type="number" name="age" required class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:bg-gray-800 dark:border-gray-700" placeholder="30">
+                            </div>
+                            <div class="space-y-2">
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Children</label>
+                                <input type="number" name="dependents" required class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:bg-gray-800 dark:border-gray-700" placeholder="0">
+                            </div>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Liquid Assets ($)</label>
+                            <input type="number" name="liquidAssets" required class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:bg-gray-800 dark:border-gray-700" placeholder="50000">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Monthly Income ($)</label>
+                            <input type="number" name="monthlyIncome" required class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:bg-gray-800 dark:border-gray-700" placeholder="6000">
+                        </div>
+                        <div class="pt-6">
+                            <button type="submit" class="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium shadow-md">Calculate Risk Capacity &rarr;</button>
+                        </div>
+                    </form>
+                </div>
+            `,
+            quiz: (question, currentIndex, total, currentAnswer) => `
+                <div class="max-w-2xl mx-auto animate-fade-in-right">
+                    <div class="mb-8 flex justify-between items-center">
+                        <span class="text-sm font-medium text-gray-400">Question ${currentIndex + 1} of ${total}</span>
+                        <div class="h-1 w-32 bg-gray-200 rounded-full overflow-hidden">
+                            <div class="h-full bg-blue-600 transition-all duration-500" style="width: ${((currentIndex + 1) / total) * 100}%"></div>
+                        </div>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-8 leading-snug">${question.text}</h2>
+                    <div id="quiz-options" class="space-y-3 mb-8">
+                        ${question.options.map((opt) => {
+                const isSelected = currentAnswer === opt.score;
+                const borderClass = isSelected ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-500 animate-flicker' : 'border-gray-100 hover:border-blue-500 hover:bg-blue-50 dark:border-gray-800 dark:hover:border-blue-400 dark:hover:bg-gray-900';
+                const textClass = isSelected ? 'text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 group-hover:text-blue-700 dark:group-hover:text-blue-400';
+
+                return `
+                            <button onclick="window.app.handleQuizSelection('${question.id}', ${opt.score})" data-score="${opt.score}"
+                                class="w-full text-left p-6 rounded-xl border-2 transition-all group ${borderClass}">
+                                <span class="font-medium ${textClass}">${opt.text}</span>
+                            </button>
+                            `;
+            }).join('')}
+                    </div>
+                    
+                    <div class="flex justify-between gap-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+                        <button onclick="window.app.prevQuestion()" ${currentIndex === 0 ? 'disabled' : ''} 
+                            class="px-6 py-3 rounded-lg font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                            &larr; Back
+                        </button>
+                        <button id="btn-next" onclick="window.app.nextQuestion()" ${!currentAnswer ? 'disabled' : ''}
+                            class="px-8 py-3 rounded-lg font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-md">
+                            ${currentIndex === total - 1 ? 'Finish Assessment' : 'Next &rarr;'}
+                        </button>
+                    </div>
+                </div>
+            `,
+            loading: () => `
+                <div class="max-w-2xl mx-auto text-center py-20 animate-fade-in">
+                    <div class="mb-12 relative flex justify-center">
+                         <div class="w-24 h-24 border-4 border-blue-100 dark:border-gray-800 rounded-full"></div>
+                         <div class="w-24 h-24 border-4 border-blue-600 rounded-full animate-spin absolute border-t-transparent"></div>
+                    </div>
+                    <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-4 animate-pulse">Analyzing Profile...</h2>
+                    <p class="text-lg text-gray-500 dark:text-gray-400">Synthesizing your financial capacity and psychological tolerance.</p>
+                </div>
+            `,
+            results: (profile) => `
+                <div class="max-w-5xl mx-auto animate-fade-in">
+                    <div class="text-center mb-12">
+                        <span class="px-4 py-1.5 rounded-full bg-green-100 text-green-700 text-sm font-medium tracking-wide">ANALYSIS COMPLETE</span>
+                        <h2 class="mt-4 text-4xl font-bold text-gray-900 dark:text-white">Your Ideal Portfolio: <span class="text-blue-600">${profile.finalRecommend}</span></h2>
+                        <p class="mt-3 text-lg text-gray-600 dark:text-gray-300">Based on your <span class="font-medium">${profile.capacityLevel} Capacity</span> and <span class="font-medium">${profile.toleranceLevel}</span>.</p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+                        <div class="bg-white dark:bg-gray-900 rounded-3xl p-8 shadow-xl border border-gray-100 dark:border-gray-800">
+                            <div class="relative h-64 w-full flex justify-center items-center mb-6">
+                                 <canvas id="allocationChart"></canvas>
+                                 <div class="absolute inset-0 flex flex-col justify-center items-center pointer-events-none">
+                                    <span class="text-3xl font-bold text-gray-900 dark:text-white">${profile.saa.equity}%</span>
+                                    <span class="text-xs text-gray-500 uppercase tracking-wider">Equity</span>
+                                 </div>
+                            </div>
+                            
+                            <!-- Detailed Breakdown List -->
+                            <div class="space-y-3">
+                                <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border-l-4 border-blue-600">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-3 h-3 rounded-full bg-blue-600"></div>
+                                        <div class="flex flex-col">
+                                            <span class="font-medium text-gray-700 dark:text-gray-300">Equity</span>
+                                            <span class="text-xs text-gray-400">$${profile.amounts.equity.toLocaleString()}</span>
+                                        </div>
+                                    </div>
+                                    <span class="font-bold text-gray-900 dark:text-white">${profile.saa.equity}%</span>
+                                </div>
+                                <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border-l-4 border-teal-500">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-3 h-3 rounded-full bg-teal-500"></div>
+                                        <div class="flex flex-col">
+                                            <span class="font-medium text-gray-700 dark:text-gray-300">Fixed Income</span>
+                                            <span class="text-xs text-gray-400">$${profile.amounts.fixed.toLocaleString()}</span>
+                                        </div>
+                                    </div>
+                                    <span class="font-bold text-gray-900 dark:text-white">${profile.saa.fixed}%</span>
+                                </div>
+                                <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border-l-4 border-gray-300">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-3 h-3 rounded-full bg-gray-300"></div>
+                                        <div class="flex flex-col">
+                                            <span class="font-medium text-gray-700 dark:text-gray-300">Cash</span>
+                                            <span class="text-xs text-gray-400">$${profile.amounts.cash.toLocaleString()}</span>
+                                        </div>
+                                    </div>
+                                    <span class="font-bold text-gray-900 dark:text-white">${profile.saa.cash}%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="space-y-8">
+                            ${profile.capacityLevel === 'Low' && profile.toleranceLevel.includes('High') ? `
+                            <div class="p-6 bg-amber-50 border-l-4 border-amber-500 rounded-r-xl">
+                                <h4 class="text-lg font-bold text-amber-800 mb-2">⚠ Constraint Applied</h4>
+                                <p class="text-amber-700">Financial capacity constraints have moderated your aggressive tolerance to protect your household.</p>
+                            </div>` : ''}
+                            <div class="space-y-4">
+                                <h3 class="text-xl font-bold text-gray-900 dark:text-white">Why this portfolio?</h3>
+                                <p class="text-gray-600 dark:text-gray-400">The <strong>${profile.finalRecommend}</strong> strategy is designed for <em>${profile.saa.label}</em>.</p>
+                            </div>
+                            <div class="pt-4 border-t border-gray-200 dark:border-gray-800">
+                                 <div class="flex justify-between items-center mb-4">
+                                    <span class="text-sm font-medium text-gray-500">Market Stress Test (2008 Scenario)</span>
+                                    <span id="stress-value" class="text-red-500 font-bold">-0%</span>
+                                 </div>
+                                 <input type="range" min="0" max="100" value="0" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-red-500" oninput="window.app.updateStressTest(this.value)">
+                            </div>
+                            <button onclick="window.app.reset()" class="text-sm text-gray-400 hover:text-gray-900 dark:hover:text-white underline decoration-dotted">Start Over</button>
+                        </div>
+                    </div>
+                </div>
+            `
+        };
+
+        // --- 5. APP LOGIC ---
+        class App {
+            constructor() {
+                this.root = document.getElementById('app-root');
+                this.init();
+                window.addEventListener('state-change', () => this.render());
+            }
+            init() {
+                window.app = this;
+                this.render();
+            }
+            render() {
+                const { currentStep } = store.state;
+                this.root.innerHTML = '';
+                if (currentStep === 'welcome') {
+                    this.root.innerHTML = components.welcome();
+                } else if (currentStep === 'financial') {
+                    this.root.innerHTML = components.financialForm();
+                    this.attachFinancialFormListener();
+                } else if (currentStep === 'quiz') {
+                    const index = store.state.quizCurrentIndex;
+                    const question = RISK_QUESTIONS[index];
+                    const currentAnswer = store.state.quizAnswers[question.id];
+                    this.root.innerHTML = components.quiz(question, index, RISK_QUESTIONS.length, currentAnswer);
+                } else if (currentStep === 'loading') {
+                    this.root.innerHTML = components.loading();
+                    // Auto-advance after delay
+                    setTimeout(() => {
+                        store.setStep('results');
+                    }, 2500);
+                } else if (currentStep === 'results') {
+                    this.renderResults();
+                }
+            }
+            startFinancial() { store.setStep('financial'); }
+            attachFinancialFormListener() {
+                const form = document.getElementById('financial-form');
+                form.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const formData = new FormData(form);
+                    store.updateFinancialData(Object.fromEntries(formData.entries()));
+                    store.state.quizCurrentIndex = 0;
+                    store.setStep('quiz');
+                });
+            }
+            handleQuizSelection(questionId, score) {
+                store.setQuizAnswer(questionId, score);
+
+                // Update UI directly to avoid re-triggering entrance animations
+                const buttons = document.querySelectorAll('#quiz-options button');
+                buttons.forEach(btn => {
+                    const btnScore = parseInt(btn.dataset.score);
+                    const isSelected = btnScore === score;
+
+                    // Reset styling classes
+                    btn.className = "w-full text-left p-6 rounded-xl border-2 transition-all group " +
+                        (isSelected
+                            ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-500 animate-flicker"
+                            : "border-gray-100 hover:border-blue-500 hover:bg-blue-50 dark:border-gray-800 dark:hover:border-blue-400 dark:hover:bg-gray-900");
+
+                    const span = btn.querySelector('span');
+                    span.className = "font-medium " +
+                        (isSelected
+                            ? "text-blue-700 dark:text-blue-400"
+                            : "text-gray-700 dark:text-gray-300 group-hover:text-blue-700 dark:group-hover:text-blue-400");
+                });
+
+                // Enable Next button
+                const nextBtn = document.getElementById('btn-next');
+                if (nextBtn) nextBtn.disabled = false;
+            }
+            nextQuestion() {
+                const nextIndex = store.state.quizCurrentIndex + 1;
+                if (nextIndex < RISK_QUESTIONS.length) {
+                    store.state.quizCurrentIndex = nextIndex;
+                    store.save(); // Direct save needed for index
+                    this.render();
+                } else {
+                    store.setStep('loading');
+                }
+            }
+            prevQuestion() {
+                const prevIndex = store.state.quizCurrentIndex - 1;
+                if (prevIndex >= 0) {
+                    store.state.quizCurrentIndex = prevIndex;
+                    store.save(); // save index
+                    this.render();
+                }
+            }
+            renderResults() {
+                const capacityObj = determineRiskCapacity(store.state.financialData);
+                const tolerance = calculateRiskToleranceScore(store.state.quizAnswers);
+                const recommendation = getRecommendedProfile(tolerance.level, capacityObj);
+                const saa = SAA_TARGETS[recommendation];
+
+                const liquidAssets = parseFloat(store.state.financialData.liquidAssets) || 0;
+                const amounts = {
+                    equity: Math.round(liquidAssets * (saa.equity / 100)),
+                    fixed: Math.round(liquidAssets * (saa.fixed / 100)),
+                    cash: Math.round(liquidAssets * (saa.cash / 100))
+                };
+
+                this.root.innerHTML = components.results({
+                    capacityLevel: capacityObj.level, // Pass the level string (Low/Moderate/High)
+                    capacityScore: capacityObj.score, // Pass numerical score for potential display
+                    toleranceLevel: tolerance.level,
+                    finalRecommend: recommendation,
+                    saa: saa,
+                    amounts: amounts
+                });
+
+                setTimeout(() => this.renderChart(saa), 100);
+            }
+            renderChart(saa) {
+                const ctx = document.getElementById('allocationChart').getContext('2d');
+                if (this.chartInstance) this.chartInstance.destroy();
+                this.chartInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Equity', 'Fixed Income', 'Cash'],
+                        datasets: [{
+                            data: [saa.equity, saa.fixed, saa.cash],
+                            backgroundColor: ['#2563eb', '#14b8a6', '#e5e7eb'],
+                            borderWidth: 0,
+                            hoverOffset: 10
+                        }]
+                    },
+                    options: {
+                        cutout: '75%',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
+            updateStressTest(value) {
+                const crashFactor = (value / 100) * 0.50;
+                const equity = this.chartInstance ? this.chartInstance.data.datasets[0].data[0] : 50;
+                const impact = (equity / 100) * crashFactor * 100;
+                document.getElementById('stress-value').innerText = `-${impact.toFixed(1)}%`;
+            }
+            reset() { store.reset(); }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => { new App(); });
+    </script>
+</body>
+
+</html>
